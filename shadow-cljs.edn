@@ -1,6 +1,7 @@
 {:source-paths ["src" "externs"]
  :dependencies [[reagent "1.0.0-alpha2" :exclusions [cljsjs/react cljsjs/react-dom]]
-                [metasoarous/oz "1.6.0-alpha26"]]
+                [metasoarous/oz "1.6.0-alpha26"]
+                [cljs-bean "1.6.0"]]
  :builds {:app {:target :browser
                 :output-dir "public/js"
                 :asset-path "js"

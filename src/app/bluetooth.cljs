@@ -1,16 +1,19 @@
 (ns app.bluetooth
   (:require
-   [cljs.core.async :as a :refer [go go-loop]]
+   [cljs.core.async :as a :refer [go go-loop >! <!]]
    [reagent.core :as r]
    [cljs.core.async.interop :refer-macros [<p!]]
-   [cljs.pprint :refer [char-code]]))
+   [cljs.pprint :refer [char-code]]
+   [app.msgpack :as msgpack]))
+
 
 ;; Create Bluetooth instance
 (def bluetooth (.-bluetooth js/navigator))
 
 ;; Packet size in bytes. Nordic supports up to 244, but 20 works on all chipsets
 ;; This could get bumped up for better performnace
-(def MTU 20)
+;; 64 Matches the default blueuart from Adafruit
+(def MTU 64)
 
 ;; GATT UUIDs
 (def ble-nus-service "6e400001-b5a3-f393-e0a9-e50e24dcca9e")
@@ -19,15 +22,15 @@
 
 ;; Channel to put to, to write to the device
 ;; This gets reset to nil on disconnects
-(def tx-chan (r/atom nil))
+(defonce tx-bytes-chan (r/atom nil))
 
 ;; Channel to take from, to read from the device
 ;; This also gets reset to nil on disconnects
-(def rx-chan (r/atom nil))
+(defonce rx-events-chan (r/atom nil))
 
 ;; Some state
-(def connected? (r/atom nil))
-(def ble-device (r/atom nil))
+(defonce connected? (r/atom nil))
+(defonce ble-device (r/atom nil))
 
 ;; Converting to JS byte arrays
 (defmulti to-bytes
@@ -43,20 +46,22 @@
        (.from js/Uint8Array)))
 
 (defn on-rx! [^js event]
-  (go
-    (when-let [chan @rx-chan]
-      (>! chan (.. event -target -value))
-      (println "got message"))))
+  (when-let [chan @rx-events-chan]
+    (go
+      (let [^js buffer (.. event -target -value)]
+       (a/>! chan (msgpack/decode-async buffer))))))
 
 (defn on-connect! [device ^js tx-chara ^js rx-chara]
   (reset! ble-device device)
-  (reset! tx-chan (a/chan))
-  (reset! rx-chan (a/chan))
+  (reset! tx-bytes-chan (a/chan))
+  (reset! rx-events-chan (a/chan))
   (reset! connected? true)
+  (println "Starting notifications")
   (.startNotifications tx-chara)
   (.addEventListener tx-chara "characteristicvaluechanged" on-rx!)
+  (println "Notifications started!")
   (go-loop []
-    (when-let [chan @tx-chan]
+    (when-let [chan @tx-bytes-chan]
       (let [item (<! chan)
             bytes (to-bytes item)]
         (loop [byte-array bytes]
@@ -68,8 +73,8 @@
 
 (defn on-disconnect! []
   (reset! ble-device nil)
-  (reset! tx-chan nil)
-  (reset! rx-chan nil)
+  (reset! tx-bytes-chan nil)
+  (reset! rx-events-chan nil)
   (reset! connected? false))
 
 (defn get-device [service & services]
@@ -91,7 +96,7 @@
   (when server
     (println "Locating NUS Service")
     (let [nus-service (.getPrimaryService server ble-nus-service)]
-      (println "Found NUS Service: " (.-uuid nus-service))
+      (println "Found NUS Service")
       nus-service)))
 
 (defn get-characteristic [^js service char-uuid]

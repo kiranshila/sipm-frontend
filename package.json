@@ -10,6 +10,7 @@
     "release": "shadow-cljs release app"
   },
   "dependencies": {
+    "@msgpack/msgpack": "^2.0.0",
     "create-react-class": "^15.6.3",
     "plotly.js": "^1.55.1",
     "react": "^16.13.1",

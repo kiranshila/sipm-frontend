@@ -1,0 +1,19 @@
+{
+  "name": "SIPM_Frontend",
+  "version": "0.0.1",
+  "private": true,
+  "devDependencies": {
+    "shadow-cljs": "2.11.1"
+  },
+  "scripts": {
+    "dev": "shadow-cljs watch app",
+    "release": "shadow-cljs release app"
+  },
+  "dependencies": {
+    "create-react-class": "^15.6.3",
+    "plotly.js": "^1.55.1",
+    "react": "^16.13.1",
+    "react-dom": "^16.13.1",
+    "react-plotly.js": "^2.4.0"
+  }
+}
